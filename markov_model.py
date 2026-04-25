@@ -3,7 +3,7 @@ import numpy as np
 
 def load_data(path):
     df = pd.read_csv(path, header=None)
-    df.columns = ["time","open","high","low","close","volume","close_time","quote_volume","trades","taker_volume"]
+    df.columns = ["time","open","high","low","close","volume","close_time","quote_volume","trades","taker_base_volume","taker_quote_volume","ignore"]
     df["time"] = pd.to_datetime(df["time"], unit="ms")
     return df
 
