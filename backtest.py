@@ -28,4 +28,12 @@ df["strategy_return"] = df["position"].shift(1) * df["return"]
 
 df["equity"] = (1 + df["strategy_return"].fillna(0)).cumprod()
 
+print("\n===== STATISTIKY =====")
+print("Celkový výnos:", round(df["equity"].iloc[-1] - 1, 4))
+print("Roční výnos:", round((df["equity"].iloc[-1] ** (365/len(df)) - 1), 4))
+print("Sharpe:", round(df["strategy_return"].mean() / df["strategy_return"].std() * (365**0.5), 4))
+print("Max drawdown:", round((df["equity"].cummax() - df["equity"]).max(), 4))
+print("Počet obchodů:", (df["position"].diff().abs() > 0).sum())
+
+
 
