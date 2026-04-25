@@ -44,7 +44,7 @@ def regime_filter(P):
     p_hat = P[j_star, j_star]
     q = 1 - p_hat
     delta = p_hat - q
-    stable = delta > 0
+    stable = p_hat > 0.4
     return j_star, p_hat, q, delta, stable
 
 def signal_from_regime(j_star, stable):
