@@ -2,17 +2,21 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from markov_model import load_data, encode_states, regime_filter, signal_from_regime
+from markov_model_2nd_order import (
+    load_data,
+    encode_states,
+    regime_filter_2nd_order,
+    signal_from_regime
+)
 
-# cesta k datům
 DATA_PATH = "data/BTCUSDT_1h.csv"
 
-# načtení a příprava
 df = load_data(DATA_PATH)
 df = encode_states(df)
 
-# --- EMA50 ---
+# --- Trend filtry ---
 df["EMA50"] = df["close"].ewm(span=50).mean()
+df["EMA200"] = df["close"].ewm(span=200).mean()
 
 # --- ATR ---
 df["H-L"] = df["high"] - df["low"]
@@ -20,25 +24,24 @@ df["H-PC"] = (df["high"] - df["close"].shift(1)).abs()
 df["L-PC"] = (df["low"] - df["close"].shift(1)).abs()
 df["TR"] = df[["H-L", "H-PC", "L-PC"]].max(axis=1)
 df["ATR"] = df["TR"].rolling(14).mean()
+
 atr_threshold = df["ATR"].quantile(0.25)
 
 def apply_filters(row, raw_signal):
-    # ATR filter – chop zóna
     if pd.isna(row["ATR"]) or row["ATR"] < atr_threshold:
         return "FLAT"
 
-    # EMA trend filter
-    if raw_signal == "LONG" and row["close"] < row["EMA50"]:
+    if raw_signal == "LONG" and row["EMA50"] < row["EMA200"]:
         return "FLAT"
-    if raw_signal == "SHORT" and row["close"] > row["EMA50"]:
+    if raw_signal == "SHORT" and row["EMA50"] > row["EMA200"]:
         return "FLAT"
 
     return raw_signal
 
-# --- Markov signály přes rolling okno ---
+
+# --- Markov 2. řádu ---
 window = 100
 signals = []
-
 states = df["state"].values
 
 for i in range(len(df)):
@@ -47,21 +50,17 @@ for i in range(len(df)):
         continue
 
     window_states = states[i - window:i]
-    j_star, stable = regime_filter(window_states)
+    j_star, stable = regime_filter_2nd_order(window_states)
     raw_sig = signal_from_regime(j_star, stable)
     signals.append(raw_sig)
 
-df["signal"] = signals
-
-# aplikace EMA/ATR filtrů
-df["raw_signal"] = df["signal"]
+df["raw_signal"] = signals
 df["signal"] = df.apply(lambda r: apply_filters(r, r["raw_signal"]), axis=1)
 
-# --- PnL výpočet ---
+# --- PnL ---
 df["position"] = df["signal"].replace({"LONG": 1, "SHORT": -1, "FLAT": 0})
 df["return"] = df["close"].pct_change()
 df["strategy_return"] = df["position"].shift(1) * df["return"]
-
 df["equity"] = (1 + df["strategy_return"].fillna(0)).cumprod()
 
 # --- Statistika ---
@@ -83,7 +82,7 @@ print("Počet obchodů:", trades)
 # --- Equity curve ---
 plt.figure(figsize=(12, 6))
 plt.plot(df["time"], df["equity"])
-plt.title("Equity Curve – Markov Strategy (EMA+ATR filtered)")
+plt.title("Equity Curve – Markov 2nd Order Strategy (EMA50/EMA200 + ATR)")
 plt.xlabel("Time")
 plt.ylabel("Equity")
 plt.grid(True)
