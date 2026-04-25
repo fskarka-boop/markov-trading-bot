@@ -16,9 +16,16 @@ def load_data(path):
 
 def encode_states(df):
     df["return"] = df["close"].pct_change()
-    df["state"] = pd.qcut(df["return"], 3, labels=[0,1,2])
+
+    # qcut může vytvořit NaN, pokud jsou duplicitní hodnoty
+    df["state"] = pd.qcut(df["return"], 3, labels=[0,1,2], duplicates="drop")
+
+    # odstraníme všechny řádky s NaN (return nebo state)
+    df = df.dropna(subset=["return", "state"])
+
     df["state"] = df["state"].astype(int)
     return df
+
 
 def transition_matrix(states):
     n = 3
