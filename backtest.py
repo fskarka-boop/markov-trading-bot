@@ -49,3 +49,32 @@ plt.ylabel("Equity")
 plt.grid(True)
 plt.show()
 
+
+import pandas as pd
+import numpy as np
+
+# --- EMA200 ---
+df["EMA200"] = df["close"].ewm(span=200).mean()
+
+# --- ATR ---
+df["H-L"] = df["high"] - df["low"]
+df["H-PC"] = abs(df["high"] - df["close"].shift(1))
+df["L-PC"] = abs(df["low"] - df["close"].shift(1))
+df["TR"] = df[["H-L", "H-PC", "L-PC"]].max(axis=1)
+df["ATR"] = df["TR"].rolling(14).mean()
+
+atr_threshold = df["ATR"].median()
+
+def apply_filters(row, raw_signal):
+    # ATR filter
+    if row["ATR"] < atr_threshold:
+        return "FLAT"
+
+    # EMA trend filter
+    if raw_signal == "LONG" and row["close"] < row["EMA200"]:
+        return "FLAT"
+    if raw_signal == "SHORT" and row["close"] > row["EMA200"]:
+        return "FLAT"
+
+    return raw_signal
+
