@@ -28,6 +28,8 @@ df["strategy_return"] = df["position"].shift(1) * df["return"]
 
 df["equity"] = (1 + df["strategy_return"].fillna(0)).cumprod()
 
+
+# Výpis základních statistik
 print("\n===== STATISTIKY =====")
 print("Celkový výnos:", round(df["equity"].iloc[-1] - 1, 4))
 print("Roční výnos:", round((df["equity"].iloc[-1] ** (365/len(df)) - 1), 4))
@@ -36,4 +38,14 @@ print("Max drawdown:", round((df["equity"].cummax() - df["equity"]).max(), 4))
 print("Počet obchodů:", (df["position"].diff().abs() > 0).sum())
 
 
+# Equity curve graf
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(12,6))
+plt.plot(df["time"], df["equity"])
+plt.title("Equity Curve – Markov Strategy")
+plt.xlabel("Time")
+plt.ylabel("Equity")
+plt.grid(True)
+plt.show()
 
