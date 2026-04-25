@@ -1,6 +1,13 @@
 import pandas as pd
 import numpy as np
 
+def encode_states(df):
+    df["return"] = df["close"].pct_change()
+    df["state"] = pd.qcut(df["return"], 3, labels=[0,1,2])
+    df = df.dropna()  # odstraní první řádek s NaN
+    df["state"] = df["state"].astype(int)
+    return df
+
 def load_data(path):
     df = pd.read_csv(path, header=None)
     df.columns = ["time","open","high","low","close","volume","close_time","quote_volume","trades","taker_base_volume","taker_quote_volume","ignore"]
