@@ -9,13 +9,13 @@ def load_data(path: str) -> pd.DataFrame:
         "taker_base_vol", "taker_quote_vol", "ignore"
     ]
 
-    # timestamp fix (mikro vs. milisekundy)
     df["time"] = df["open_time"].apply(lambda x: x / 1000 if x > 10**12 else x)
     df["time"] = pd.to_datetime(df["time"], unit="ms")
 
     df = df[["time", "open", "high", "low", "close", "volume"]].copy()
     df = df.sort_values("time").reset_index(drop=True)
     return df
+
 
 def encode_states(df: pd.DataFrame) -> pd.DataFrame:
     df["return"] = df["close"].pct_change()
@@ -31,24 +31,34 @@ def encode_states(df: pd.DataFrame) -> pd.DataFrame:
     df["state"] = df["state"].astype(int)
     return df
 
-def build_transition_matrix(states: np.ndarray, n_states: int = 3) -> np.ndarray:
-    P = np.zeros((n_states, n_states))
-    for i in range(len(states) - 1):
-        P[states[i], states[i + 1]] += 1
+
+def build_transition_matrix_2nd_order(states: np.ndarray, n_states: int = 3):
+    size = n_states * n_states
+    P = np.zeros((size, n_states))
+
+    for i in range(len(states) - 2):
+        prev_pair = states[i] * n_states + states[i + 1]
+        next_state = states[i + 2]
+        P[prev_pair, next_state] += 1
+
     row_sums = P.sum(axis=1, keepdims=True)
     row_sums[row_sums == 0] = 1
     P = P / row_sums
     return P
 
-def regime_filter(states_window: np.ndarray) -> tuple[int, bool]:
-    P = build_transition_matrix(states_window)
-    diag = np.diag(P)
-    j_star = int(np.argmax(diag))
-    p_hat = diag[j_star]
 
-    # mírně změkčená stabilita
-    stable = p_hat > 0.33
+def regime_filter_2nd_order(states_window: np.ndarray, n_states: int = 3):
+    P = build_transition_matrix_2nd_order(states_window, n_states)
+
+    diag_strength = P.max(axis=1)
+    idx = np.argmax(diag_strength)
+
+    j_star = int(np.argmax(P[idx]))
+    p_hat = float(P[idx, j_star])
+
+    stable = p_hat > 0.40
     return j_star, stable
+
 
 def signal_from_regime(j_star: int, stable: bool) -> str:
     if not stable:
@@ -58,3 +68,4 @@ def signal_from_regime(j_star: int, stable: bool) -> str:
     if j_star == 0:
         return "SHORT"
     return "FLAT"
+
