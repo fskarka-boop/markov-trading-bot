@@ -11,8 +11,8 @@ DATA_PATH = "data/BTCUSDT_1h.csv"
 df = load_data(DATA_PATH)
 df = encode_states(df)
 
-# --- EMA200 ---
-df["EMA200"] = df["close"].ewm(span=200).mean()
+# --- EMA50 ---
+df["EMA50"] = df["close"].ewm(span=50).mean()
 
 # --- ATR ---
 df["H-L"] = df["high"] - df["low"]
@@ -28,9 +28,9 @@ def apply_filters(row, raw_signal):
         return "FLAT"
 
     # EMA trend filter
-    if raw_signal == "LONG" and row["close"] < row["EMA200"]:
+    if raw_signal == "LONG" and row["close"] < row["EMA50"]:
         return "FLAT"
-    if raw_signal == "SHORT" and row["close"] > row["EMA200"]:
+    if raw_signal == "SHORT" and row["close"] > row["EMA50"]:
         return "FLAT"
 
     return raw_signal
