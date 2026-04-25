@@ -5,7 +5,7 @@ df = load_data("data/BTCUSDT_1h.csv")
 df = encode_states(df)
 
 signals = []
-window = 200  # rolling okno (cca 3 týdny)
+window = 50  # rolling okno (cca 3 týdny)
 
 for i in range(window, len(df)):
     window_states = df["state"].iloc[i-window:i].values
