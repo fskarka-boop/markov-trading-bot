@@ -1,53 +1,56 @@
 import pandas as pd
 import numpy as np
 
-def encode_states(df):
-    df["return"] = df["close"].pct_change()
-    df["state"] = pd.qcut(df["return"], 3, labels=[0,1,2])
-    df = df.dropna()  # odstraní první řádek s NaN
-    df["state"] = df["state"].astype(int)
-    return df
-
-def load_data(path):
+def load_data(path: str) -> pd.DataFrame:
     df = pd.read_csv(path, header=None)
-    df.columns = ["time","open","high","low","close","volume","close_time","quote_volume","trades","taker_base_volume","taker_quote_volume","ignore"]
-    # Binance Vision někdy dává mikrosekundy místo milisekund
-    # Pokud je timestamp příliš velký, vydělíme ho 1000
-    df["time"] = df["time"].apply(lambda x: x / 1000 if x > 10**12 else x)
+    df.columns = [
+        "open_time", "open", "high", "low", "close",
+        "volume", "close_time", "qav", "num_trades",
+        "taker_base_vol", "taker_quote_vol", "ignore"
+    ]
+
+    # timestamp fix (mikro vs. milisekundy)
+    df["time"] = df["open_time"].apply(lambda x: x / 1000 if x > 10**12 else x)
     df["time"] = pd.to_datetime(df["time"], unit="ms")
 
+    df = df[["time", "open", "high", "low", "close", "volume"]].copy()
+    df = df.sort_values("time").reset_index(drop=True)
     return df
 
-def encode_states(df):
+def encode_states(df: pd.DataFrame) -> pd.DataFrame:
     df["return"] = df["close"].pct_change()
 
-    # qcut může vytvořit NaN, pokud jsou duplicitní hodnoty
-    df["state"] = pd.qcut(df["return"], 3, labels=[0,1,2], duplicates="drop")
+    df["state"] = pd.qcut(
+        df["return"],
+        3,
+        labels=[0, 1, 2],
+        duplicates="drop"
+    )
 
-    # odstraníme všechny řádky s NaN (return nebo state)
     df = df.dropna(subset=["return", "state"])
-
     df["state"] = df["state"].astype(int)
     return df
 
-
-def transition_matrix(states):
-    n = 3
-    P = np.zeros((n,n))
-    for i in range(len(states)-1):
-        P[states[i], states[i+1]] += 1
-    P = P / P.sum(axis=1, keepdims=True)
+def build_transition_matrix(states: np.ndarray, n_states: int = 3) -> np.ndarray:
+    P = np.zeros((n_states, n_states))
+    for i in range(len(states) - 1):
+        P[states[i], states[i + 1]] += 1
+    row_sums = P.sum(axis=1, keepdims=True)
+    row_sums[row_sums == 0] = 1
+    P = P / row_sums
     return P
 
-def regime_filter(P):
-    j_star = np.argmax(np.diag(P))
-    p_hat = P[j_star, j_star]
-    q = 1 - p_hat
-    delta = p_hat - q
-    stable = p_hat > 0.33
-    return j_star, p_hat, q, delta, stable
+def regime_filter(states_window: np.ndarray) -> tuple[int, bool]:
+    P = build_transition_matrix(states_window)
+    diag = np.diag(P)
+    j_star = int(np.argmax(diag))
+    p_hat = diag[j_star]
 
-def signal_from_regime(j_star, stable):
+    # mírně změkčená stabilita
+    stable = p_hat > 0.33
+    return j_star, stable
+
+def signal_from_regime(j_star: int, stable: bool) -> str:
     if not stable:
         return "FLAT"
     if j_star == 2:
