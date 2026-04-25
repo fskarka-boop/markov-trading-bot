@@ -36,7 +36,7 @@ def apply_filters(row, raw_signal):
     return raw_signal
 
 # --- Markov signály přes rolling okno ---
-window = 50
+window = 100
 signals = []
 
 states = df["state"].values
