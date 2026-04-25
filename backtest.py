@@ -20,7 +20,7 @@ df["H-PC"] = (df["high"] - df["close"].shift(1)).abs()
 df["L-PC"] = (df["low"] - df["close"].shift(1)).abs()
 df["TR"] = df[["H-L", "H-PC", "L-PC"]].max(axis=1)
 df["ATR"] = df["TR"].rolling(14).mean()
-atr_threshold = df["ATR"].median()
+atr_threshold = df["ATR"].quantile(0.25)
 
 def apply_filters(row, raw_signal):
     # ATR filter – chop zóna
@@ -89,4 +89,3 @@ plt.ylabel("Equity")
 plt.grid(True)
 plt.tight_layout()
 plt.show()
-
