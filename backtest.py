@@ -21,3 +21,11 @@ df["signal"] = signals
 
 print(df[["time", "close", "signal"]].tail(20))
 
+# Výpočet PnL
+df["position"] = df["signal"].replace({"LONG": 1, "SHORT": -1, "FLAT": 0})
+df["return"] = df["close"].pct_change()
+df["strategy_return"] = df["position"].shift(1) * df["return"]
+
+df["equity"] = (1 + df["strategy_return"].fillna(0)).cumprod()
+
+
